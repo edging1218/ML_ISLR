@@ -16,13 +16,14 @@ TestedNegative = sum(confusion[,1])
 (accuracy = (TP+TN)/total)
 # 1 - accuracy
 (misclassificationRate = (FP+FN)/total)
-# Sensitivity or Recall or 1 - Type II error, power
+
+# Sensitivity or Recall or 1 - Type II error, power, (TP/ (TP + FN))
 (truePositiveRate = TP/Disease)
-# 1 - specificity or Type 1 error
+# 1 - specificity or Type I error
 (falsePositiveRate = FP/Nodisease)
-# Specificity
+# Specificity or TN / (TN + FP)
 (specificity = TN/Nodisease)
-# Precision: When test is positive, how often is it correct?
+# Precision: When test is positive, how often is it correct? TP / (TP + FP)
 (precision = ifelse(TP==0,0,TP/TestedPositive))
 # Prevalence is more important in Bayes 
 (prevalence = Disease/total)
