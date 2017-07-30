@@ -18,12 +18,14 @@ TestedNegative = sum(confusion[,1])
 (misclassificationRate = (FP+FN)/total)
 
 # Sensitivity or Recall or 1 - Type II error, power, (TP/ (TP + FN))
-(truePositiveRate = TP/Disease)
+# When FN is worse than FP (medical diagonois), we want a high recall
+(recall = TP/Disease)
 # 1 - specificity or Type I error
 (falsePositiveRate = FP/Nodisease)
 # Specificity or TN / (TN + FP)
 (specificity = TN/Nodisease)
 # Precision: When test is positive, how often is it correct? TP / (TP + FP)
+# When FP is worse than FN (spam), we want a high precision
 (precision = ifelse(TP==0,0,TP/TestedPositive))
 # Prevalence is more important in Bayes 
 (prevalence = Disease/total)
@@ -39,6 +41,6 @@ Kappa = (accuracy - random_accuracy) / (1 - random_accuracy)
 # Kappa's limitation?
 print(Kappa)
 # F-measure
-F1 = 2 * precision * truePositiveRate / (precision + truePositiveRate)
+F1 = 2 * precision * recall / (precision + recall)
 print(F1)
 # F-measure's limitation?
