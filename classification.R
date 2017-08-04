@@ -38,9 +38,15 @@ random_accuracy = (TN + FP)/total*(TN + FN)/total + (FN + TP)/total * (TP + FP)/
 Kappa = (accuracy - random_accuracy) / (1 - random_accuracy)
 # If Kappa range from -1 to 1, where 0 represents the quality that can be expected from random classifier, while 1 represents perfect predicting quality.
 # Kappa below 0 are theoretically possible but unlikely in practive.
-# Kappa's limitation?
 print(Kappa)
 # F-measure
+# harmonic mean, which is always lower than arithmetic mean (x + y) /2
+# F1 score raises flag when one of them is small
 F1 = 2 * precision * recall / (precision + recall)
 print(F1)
 # F-measure's limitation?
+# F_beta score
+F1_beta = function(beta, precision, recall){
+   (1 + beta^2) * precision * recall / (beta * precision + recall)
+} 
+
