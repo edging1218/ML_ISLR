@@ -15,8 +15,10 @@ In this project, we aim to use different regreesion methods (linear model, PCA m
 Load librairies...
 ```{r}
 suppressWarnings(library ('glmnet'))
+suppressMessages(library('relaimpo'))
 suppressWarnings(library ('rpart'))
 suppressWarnings(library ('rpart.plot'))
+
 dataPath <- "~/Documents/Lecture/MachineLearning/ML_PA_SM17_Yuri/HW/project"
 data <- read.csv(paste(dataPath,"slice_localization_data.csv",sep="/"),header=T)
 coln = colnames(data)
