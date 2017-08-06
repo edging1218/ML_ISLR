@@ -1,0 +1,67 @@
+---
+title: "PCA_USArrests"
+author: "Ye"
+date: "8/6/2017"
+output: pdf_document
+---
+
+ 
+# Overview of the Data
+
+```{r}
+head(USArrests)
+USArrests.means<-apply(USArrests , 2, mean) 
+USArrests.vars<-apply(USArrests , 2, var) 
+rbind(USArrests.means,USArrests.vars)
+```
+
+# Apply PCA
+```{r}
+pr.out=prcomp(USArrests , scale=TRUE)
+names(pr.out)
+#standardize the dataset to mean = 0 and std = 1
+print(pr.out$center)
+print(pr.out$scale)
+#score vectors
+head(pr.out$x)
+smry<-summary(pr.out)
+print(smry$importance)
+#Same as
+#pr.var=pr.out$sdev ^2
+#pve=pr.var/sum(pr.var)
+```
+
+The first principal component corresponds to the direction with the highest variation. Here in this case, the first principal component explains 62% of the variation.
+
+# The loading vectors 
+```{r}
+#loading vectors
+print(pr.out$rotation)
+
+matplot(pr.out$rotation,type="l",lty=1,lwd=3,col=c("black","red","blue","green"),xaxt = "n")
+abline(h=0)
+legend("bottomleft",
+       legend=c("L1","L2","L3","L4"),
+       lty=1,lwd=3,cex=.7,col=c("black","red","blue","green"))
+axis(1,1:4,rownames(pr.out$rotation))
+
+biplot(pr.out , scale=0)
+```
+
+From the figures, we may tell the first principal component mainly describe the overall level of crime, while the second principal component is more responseible to the Urban population.
+From the biplot figure, we may tell that California is a state with generally higher urban population and high level of crime rate.
+
+# Dimension Reduction
+Here, we perform dimension reduction on the first two principal components and then compare the pair plot before and after the dimension reduciton.
+
+```{r}
+USArrests.approximations<-pr.out$x[,1:2]%*%t(pr.out$rotation[,1:2])
+head(USArrests.approximations)
+USArrests.scaled<-apply(USArrests,2,scale)
+pairs(apply(USArrests.scaled,2,rank))
+pairs(apply(USArrests.approximations,2,rank))
+pr.out.residuals<-USArrests.scaled-USArrests.approximations
+pairs(apply(pr.out.residuals,2,rank))
+```
+
+Clearly, we may tell that PCA exaggerates the correlation between variables.
