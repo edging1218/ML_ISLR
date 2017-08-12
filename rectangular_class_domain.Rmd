@@ -1,0 +1,69 @@
+---
+title: "rectangular_class_domain"
+author: "Ye"
+date: "7/28/2017"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Load library
+```{r}
+suppressWarnings(library(caret))
+suppressWarnings(library(rpart))
+suppressWarnings(library(e1071))
+```
+
+# Create rectangular class domain with certain randomness
+```{r}
+N = 1000
+xPos = 0.2
+yMinPos = 0.2
+yMaxPos = 0.7
+newData = data.frame(x=runif(N),y=runif(N))
+newData$type = with(newData,ifelse(x>xPos & y>yMinPos & y<yMaxPos,
+                                   'Positive', 'Negative'))
+
+n = N/10
+newData$type[1:n] = c('Positive', 'Negative')[1+rbinom(n, 1, 0.5)]
+newData$type = factor(newData$type)
+newData = newData[sample(nrow(newData)),] 
+qplot(x=x,y=y,data=newData, color=type)
+```
+
+# Logistic regression and perform cross validation (caret) to check the predictive quality
+
+```{r}
+modelFormula = formula('type ~ x + y')
+logrFit <- glm(modelFormula, family=binomial("logit"),data=newData)
+print(summary(logrFit))
+ctrl <- trainControl(method = "cv", number = 10)
+logrTrain <- train(modelFormula, data=newData,
+                   method = 'glm', trControl = ctrl)
+summary(logrTrain)
+```
+
+# Use classification tree to fit the data
+
+```{r}
+treeFit <- rpart(modelFormula, data=newData)
+printcp(treeFit)
+treeTrain <- train(modelFormula, method="rpart",data=newData,
+                   trControl = ctrl)
+```
+
+# Use SVM to fit the data
+```{r}
+svmTuned <- tune.svm(type~., data = newData, gamma = 10^(-4:-1), cost = 5*(1:4))
+summary(svmTuned)
+svmTuned$best.parameters
+plot(svmTuned$best.model, newData)
+print(svmTrain)
+```
+
+
+```{r}
+print(list(tree = treeTrain$results, logit = logrTrain$results, svm = svmTrain$results))
+```
