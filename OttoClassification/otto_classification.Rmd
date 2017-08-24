@@ -1,0 +1,204 @@
+---
+title: "Otto Production Classification"
+author: "Ye Zhou"
+date: "8/18/2017"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load Data
+```{r}
+suppressWarnings(library(randomForest))
+suppressWarnings(library(dummies))
+suppressWarnings(library(e1071))
+suppressWarnings(library(xgboost))
+suppressWarnings(library(caret))
+suppressWarnings(library(neuralnet))
+```
+```{r}
+dataPath <- "~/Documents/Lecture/MachineLearning/ML_PA_SM17_Yuri/HW/project2"
+train <- read.csv(paste(dataPath,"train_sample.csv",sep="/"),header=T)
+test <- read.csv(paste(dataPath,"test_sample.csv",sep="/"),header=T)
+```
+
+```{r}
+set.seed(13)
+ncol = ncol(train)
+nrow = nrow(train)
+testInd = sample(nrow, nrow*0.2)
+xTrain = train[-testInd,]
+xTest = train[testInd,]
+yTrain = as.factor(train$target[-testInd])
+xTrain$target = as.factor(xTrain$target)
+yTest = train$target[testInd]
+target_IndMat<-dummy.data.frame(data=as.data.frame(yTest), 
+                                   sep="_", verbose=F, 
+                                   dummy.class="ALL")
+```
+
+
+# Random forest
+```{r}
+MultiLogLoss <- function(act, pred)
+{
+  eps = 1e-15;
+  if (!is.matrix(pred)) pred<-(as.matrix(pred))
+  if (!is.matrix(act)) act<-(as.matrix(act))
+  nr <- nrow(pred)
+  pred = matrix(sapply( pred, function(x) max(eps,x)), nrow = nr)      
+  pred = matrix(sapply( pred, function(x) min(1-eps,x)), nrow = nr)
+  #normalize rows
+  ll = sum(act*log(sweep(pred, 1, rowSums(pred), FUN="/")))
+  ll = -ll/nrow(act)
+  return(ll);
+}
+```
+```{r}
+ntrees = c(500, 1000)
+for (ntree in ntrees){
+  print(ntree)
+  rfOtto <- randomForest(target~., data=xTrain,ntree=ntree)
+  rfPred <- predict(rfOtto, xTest, type="prob")
+  (rfLogLoss = MultiLogLoss(rf_target_IndMat,rfPred))
+  print(rfLogLoss)
+}
+```
+```{r}
+ntrees = c(1500, 1250)
+for (ntree in ntrees){
+  print(ntree)
+  rfOtto <- randomForest(target~., data=xTrain,ntree=ntree)
+  rfPred <- predict(rfOtto, xTest, type="prob")
+  (rfLogLoss = MultiLogLoss(rf_target_IndMat,rfPred))
+  print(rfLogLoss)
+}
+```
+```{r}
+ntrees = c(750, 1250)
+for (ntree in ntrees){
+  print(ntree)
+  rfOtto <- randomForest(target~., data=xTrain,ntree=ntree)
+  rfPred <- predict(rfOtto, xTest, type="prob")
+  (rfLogLoss = MultiLogLoss(rf_target_IndMat,rfPred))
+  print(rfLogLoss)
+}
+```
+
+#xgboost
+```{r}
+xTrain[] = lapply(xTrain, as.numeric)
+xTest[] = lapply(xTest, as.numeric)
+xgbTrain = data.matrix(xTrain[,-ncol(xTrain)])
+xgbTest = data.matrix(xTest[,-ncol(xTest)])
+yTrain = as.factor(train$target[-testInd])
+yTest = train$target[testInd]
+yTrain = as.integer(yTrain)-1
+yTest = as.integer(yTest)-1
+numClasses = max(yTrain) + 1
+param <- list("objective" = "multi:softprob",
+              "eval_metric" = "mlogloss",
+              "num_class" = numClasses)
+cv.nround <- 100
+cv.nfold <- 3
+set.seed(1)
+(bst.cv = xgb.cv(param=param, data = xgbTrain, label = yTrain, 
+                 nfold = cv.nfold, nrounds = cv.nround,verbose=F))
+opt.nround = which.min(bst.cv$evaluation_log$test_mlogloss_mean)
+print(opt.nround)
+bst = xgboost(param=param, data = xgbTrain, label = yTrain, 
+              nrounds=opt.nround,verbose=F)
+xgbPred <- matrix(predict(bst, xgbTest), ncol = numClasses, byrow = TRUE)
+MultiLogLoss(rf_target_IndMat,xgbPred)
+```
+
+# xgboost
+```{r}
+searchGridSubCol <- expand.grid(eta = c(0.3, 0.15, 0.05), 
+                                max_depth = c(4, 5, 6))
+ntrees <- 100
+
+#Build a xgb.DMatrix object
+DMMatrixTrain <- xgb.DMatrix(data = xgbTrain, label = yTrain)
+#Specify the parameter
+
+mll.grid <- apply(searchGridSubCol, 1, function(parameterList){
+
+    #Extract Parameters to test
+    current.eta <- parameterList[["eta"]]
+    current.max_depth <- parameterList[["max_depth"]]
+    param <- list("objective" = "multi:softprob",
+              "eval_metric" = "mlogloss",
+              "num_class" = numClasses,
+              "eta" = current.eta, 
+              "max_depth" = current.max_depth)
+    
+    best.cv <- xgb.cv(data =  DMMatrixTrain, nrounds = ntrees, nfold = 5, param = param)
+    (opt.nround = which.min(bst.cv$evaluation_log$test_mlogloss_mean))
+    bst = xgboost(param=param, DMMatrixTrain, 
+              nrounds=opt.nround,verbose=F)
+    xgbPred <- matrix(predict(bst, xgbTest), ncol = numClasses, byrow = TRUE)
+    mll = MultiLogLoss(rf_target_IndMat,xgbPred)
+    (res = c(current.eta, current.max_depth, mll))
+    return(res)
+})
+print(mll.grid)
+```
+
+# SVM
+```{r}
+xTrain = train[-testInd,]
+xTest = train[testInd,-ncol]
+xTrain$target = as.factor(xTrain$target)
+yTest = train$target[testInd]
+svmFit <- svm(target~., data = xTrain, probability = TRUE)
+predict <- predict(svmFit, xTest,
+                   probability = TRUE)
+prob = attr(predict, "probabilities")
+prob = prob[,sort(colnames(prob))]
+print(MultiLogLoss(rf_target_IndMat,prob))
+```
+
+# neural network
+```{r}
+trainX = train[-testInd, -ncol]
+#trainY = as.factor(train$target[-testInd])
+trainY = as.factor(train$target[-testInd])
+levels(trainY) <- make.names(levels(trainY))
+testX = train[testInd, -ncol]
+testY = train$target[testInd]
+ctrl <- trainControl(method = "cv", number = 5, classProbs =  TRUE)
+set.seed(0)
+nnFitOtto <- train(trainX, trainY, method = "nnet", trControl = ctrl,
+                  tuneGrid = expand.grid(.size=3:6,.decay=.3),
+                  maxit = 1000, trace = FALSE,
+                  preProc = c("center", "scale"))
+actMatrix = model.matrix(~-1+testY)
+nn.pred = predict(nnFitOtto,testX,type='prob')
+print(MultiLogLoss(actMatrix, nn.pred))
+```
+```{r}
+testX = train[testInd, -ncol]
+nn.pred = predict(nnFitOtto,testX,type='prob')
+print(MultiLogLoss(rf_target_IndMat,nn.pred))
+```
+
+#knn
+```{r}
+set.seed(1)
+fitControl <- trainControl(method = "cv",number = 5, savePredictions = 'final', classProbs = T)
+knn <- train(trainX, trainY, method='knn', trControl=fitControl, tuneLength=3)
+
+#Predicting using knn model
+pred_knn <- predict(object = knn, test)
+```
+
+
+
+```{r}
+pred_mix = (prob + rfPred) * 0.5
+print(MultiLogLoss(rf_target_IndMat,pred_mix))
+```
+
