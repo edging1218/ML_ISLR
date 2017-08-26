@@ -24,6 +24,8 @@ train <- read.csv(paste(dataPath,"train_sample.csv",sep="/"),header=T)
 test <- read.csv(paste(dataPath,"test_sample.csv",sep="/"),header=T)
 ```
 
+
+## Split data into train and test data
 ```{r}
 set.seed(13)
 ncol = ncol(train)
@@ -40,7 +42,7 @@ target_IndMat<-dummy.data.frame(data=as.data.frame(yTest),
 ```
 
 
-# Random forest
+# Define LogLoss
 ```{r}
 MultiLogLoss <- function(act, pred)
 {
@@ -56,8 +58,10 @@ MultiLogLoss <- function(act, pred)
   return(ll);
 }
 ```
+
+# Random forest
 ```{r}
-ntrees = c(500, 1000)
+ntrees = c(500, 1000, 100)
 for (ntree in ntrees){
   print(ntree)
   rfOtto <- randomForest(target~., data=xTrain,ntree=ntree)
@@ -66,26 +70,7 @@ for (ntree in ntrees){
   print(rfLogLoss)
 }
 ```
-```{r}
-ntrees = c(1500, 1250)
-for (ntree in ntrees){
-  print(ntree)
-  rfOtto <- randomForest(target~., data=xTrain,ntree=ntree)
-  rfPred <- predict(rfOtto, xTest, type="prob")
-  (rfLogLoss = MultiLogLoss(rf_target_IndMat,rfPred))
-  print(rfLogLoss)
-}
-```
-```{r}
-ntrees = c(750, 1250)
-for (ntree in ntrees){
-  print(ntree)
-  rfOtto <- randomForest(target~., data=xTrain,ntree=ntree)
-  rfPred <- predict(rfOtto, xTest, type="prob")
-  (rfLogLoss = MultiLogLoss(rf_target_IndMat,rfPred))
-  print(rfLogLoss)
-}
-```
+
 
 #xgboost
 ```{r}
@@ -185,7 +170,7 @@ nn.pred = predict(nnFitOtto,testX,type='prob')
 print(MultiLogLoss(rf_target_IndMat,nn.pred))
 ```
 
-#knn
+# knn
 ```{r}
 set.seed(1)
 fitControl <- trainControl(method = "cv",number = 5, savePredictions = 'final', classProbs = T)
@@ -197,8 +182,4 @@ pred_knn <- predict(object = knn, test)
 
 
 
-```{r}
-pred_mix = (prob + rfPred) * 0.5
-print(MultiLogLoss(rf_target_IndMat,pred_mix))
-```
 

@@ -1,10 +1,7 @@
 suppressWarnings(library(dummies))
-suppressWarnings(library(e1071))
 suppressWarnings(library(xgboost))
-suppressWarnings(library(caret))
 
-
-dataPath <- "~/Documents/Lecture/MachineLearning/ML_PA_SM17_Yuri/HW/project2"
+dataPath <- "/Users/yezhou/Box Sync/Lecture/MachineLearning/ML_PA_SM17_Yuri/HW/project2/Dong"
 train <- read.csv(paste(dataPath,"train_sample.csv",sep="/"),header=T)
 test <- read.csv(paste(dataPath,"test_sample.csv",sep="/"),header=T)
 
@@ -20,14 +17,6 @@ MultiLogLoss <- function(act, pred)
   ll = sum(act*log(sweep(pred, 1, rowSums(pred), FUN="/")))
   ll = -ll/nrow(act)
   return(ll);
-}
-
-clusters <- function(x, centers) {
-  # compute squared euclidean distance from each sample to each cluster center
-  tmp <- sapply(seq_len(nrow(x)),
-                function(i) apply(centers, 1,
-                                  function(v) sum((x[i, ]-v)^2)))
-  max.col(-t(tmp))  # find index of min distance
 }
 
 ncol = ncol(train)
@@ -47,8 +36,11 @@ testf1 = rowSums(xtest == 0)
 testf2 = rowSums(xtest != 0)
 testf3 = rowSums(xtest)
 
-cluster = kmeans(train, 30, iter.max = 30)
-f4 = cluster$cluster
+alldata = rbind(x, xtest)
+cluster = kmeans(alldata, 30, iter.max = 30)
+f4_all = cluster$cluster
+f4 = f4_all[1:nrow]
+testf4 = f4_all[-c(1:nrow)]
 
 new_x = cbind(x, n1 = f1, n2 = f2, n3 = f3, n4 = f4)
 xTrain = new_x[-testInd,]
@@ -96,7 +88,7 @@ print(MultiLogLoss(train_IndMat,xgbTrain.pred))
 print(MultiLogLoss(target_IndMat,xgbPred))
 
 
-testf4 = clusters(xtest, cluster$centers)
+
 newtest = cbind(xtest, n1 = testf1, n2 = testf2, n3 = testf3, n4 = testf4)
 newtest[] = lapply(newtest, as.numeric)
 newtest = data.matrix(newtest)
@@ -104,13 +96,5 @@ res <- matrix(predict(bst, newtest), ncol = numClasses, byrow = TRUE)
 write.table(res,"res.csv",quote=F,col.names = T,sep = ",")
 
 
-new_x[] = lapply(new_x, as.numeric)
-new_train = data.matrix(new_x)
-y = as.integer(as.factor(train$target))-1
-set.seed(1)
-bst2 = xgboost(param=xg.param, data = new_train, label = y, 
-                  nrounds=opt.nround,verbose=F)
 
-res2 <- matrix(predict(bst2, newtest), ncol = numClasses, byrow = TRUE)
-write.table(res2,"res2.csv",quote=F,col.names = T,sep = ",")
 
