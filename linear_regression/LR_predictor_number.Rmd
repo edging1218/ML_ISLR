@@ -1,0 +1,75 @@
+---
+title: "L1Workshop1"
+author: "Ye"
+date: "6/28/2017"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Linear regression with number of independent predictors from 2 to 500.
+$Y_{i,j} = \beta_0 + \beta_1X_{i,1} + ... + \beta_jX_{i, j} + \epsilon_i; i = 1,...,500; j=2, ...,500.$ 
+
+```{r}
+set.seed(8394756)
+Epsilon = rnorm(500, 0, 1)
+X = rnorm(500*500, 0, 2)
+dim(X) = c(500, 500)
+colnames(X) = paste0("X", 1:500)
+slopesSet = runif(500, 1, 3)
+Y = sapply(2:500, function(z) 1 + X[, 1:z] %*% slopesSet[1:z] + Epsilon)
+```
+## Analysis of accuracy of inference as a function of number of the predictors
+```{r}
+completeModelDataFrame = data.frame(Y=Y[,490], X[, 1:491])
+m2 = lm(Y[,1]~X[,1:2])
+m490 = lm(Y~., data=completeModelDataFrame)
+summary(m2)
+plot(coefficients(summary(m490))[-1,4],
+     main="Coefficients' P-Values for 490 Predictors", 
+     xlab="Coefficient",
+     ylab="P-Value")
+```
+Both summaries show pretty strong significanceof all predictors.
+#Check 95% confidence intervals for the first predictor $X_{i, 1}$ estimated for both models.
+```{r}
+confint(m2)[2,]
+confint(m490)[2,]
+```
+##Explain?
+# Coefficients of determination ($R^2$) and adjusted $R^2 = 1 - \frac{SSE/(n-k)}{SST/{n-1}}$
+```{r}
+rSquared<-sapply(2:500,function(z) summary(lm(Y~.,data=data.frame(Y=Y[,z-1],X[,1:z])))$r.squared)
+plot(rSquared,type="l", 
+     main="Improvement of Fit with Number of Predictors", 
+     xlab="Number of Predictors", 
+     ylab="Determination Coefficient")
+adjustedRSquared<-sapply(2:500,function(z) summary(lm(Y~.,data=data.frame(Y=Y[,z-1],X[,1:z])))$adj.r.squared)
+plot(adjustedRSquared,type="l",
+     main="Improvement of Fit with Number of Predictors",
+     xlab="Number of Predictors",
+     ylab="Adjusted R-Squared")
+```
+# Plot the confidence interval of $X_{i, 1}$ for all nested models
+```{r}
+leftConfInt<-suppressWarnings(sapply(2:500,function(z) confint(lm(Y~.,data=data.frame(Y=Y[,z-1],X[,1:z])))[2,1]))
+rightConfInt<-suppressWarnings(sapply(2:500,function(z) confint(lm(Y~.,data=data.frame(Y=Y[,z-1],X[,1:z])))[2,2]))
+matplot(1:490,cbind(leftConfInt[1:490],rightConfInt[1:490]),type="l",lty=1,
+        lwd=2,col=c("red","blue"),main="Confidence Intervals for Beta_1",
+        xlab="Number of Predictors",ylab="95% Confidence Intervals")
+```
+# Conclusions:
+1. As number of predictors grows the quality of fit expressed as $R^2$ or adjusted $R^2$ continuously improves.
+2. But inference for a fixed predictor becomes less and less accurate, which is shown by the widening confidence interval.
+3. This means that if there is, for example, one significant predictor $X_{i,1}$, by increasing the total number of predictors (even though they all or many of them may be significant) we can damage accuracy of estimation of the slope for $X_{i,1}$.
+4. This example shows one problem that DM has to face, which is not emphasized in traditional courses on statistical analysis where only low numbers of predictors are considered.
+
+#Selecting predictors for regresssion (drop1() or step())
+```{r}
+m10<-lm(Y~.,data=data.frame(Y=Y[,9],X[,1:10]))
+(drop1.m10<-drop1(m10))
+bestToDrop<-drop1.m10[which.min(drop1.m10$AIC),]
+(step.m10<-step(m10,direction="both"))
+```

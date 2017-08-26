@@ -1,0 +1,69 @@
+---
+title: "L2Workshop1"
+author: "Ye"
+date: "6/28/2017"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Linear regression with number of independent predictors from 2 to 500.
+$Y_{i,j} = \beta_0 + \beta_1X_{i,1} + ... + \beta_jX_{i, j} + \epsilon_i; i = 1,...,500; j=2, ...,500.$ 
+
+```{r}
+set.seed(8394756)
+Epsilon = rnorm(500, 0, 1)
+X = rnorm(500*500, 0, 2)
+dim(X) = c(500, 500)
+colnames(X) = paste0("X", 1:500)
+slopesSet = runif(500, 1, 3)
+Y = sapply(2:500, function(z) 1 + X[, 1:z] %*% slopesSet[1:z] + Epsilon)
+```
+# Relative importance measures
+```{r}
+m10<-lm(Y~.,data=data.frame(Y=Y[,9],X[,1:10]))
+suppressMessages(library(relaimpo))
+(metrics10<-calc.relimp(m10, type = c("lmg", "first", "last","betasq", "pratt")))
+slotNames(metrics10)
+c(sum10.lmg=sum(metrics10@lmg),
+  sum10.first=sum(metrics10@first),
+  sum10.last=sum(metrics10@last),
+  m10.R2=summary(m10)$r.squared)
+```
+The goal of each measure is to decompose the total R2R2 into contributions by different predictors.
+The measure lmg is the closest to that target.
+The measure first typically underestimates $R^2$.
+The measure last typically overestimates it.
+```{r}
+(metrics10.lmg.rank<-metrics10@lmg.rank)
+orderedPedictors<-X[,1:10][,order(metrics10.lmg.rank)]
+originalR2.10<-sapply(2:10,function(z) summary(lm(Y~.,data=data.frame(Y=Y[,9],X[,1:z])))$r.squared)
+improvedR2.10<-sapply(2:10,function(z) summary(lm(Y~.,data=data.frame(Y=Y[,9],orderedPedictors[,1:z])))$r.squared)
+matplot(2:10,cbind(originalR2.10,improvedR2.10),type="l",lty=1,lwd=2,col=c("black","red"),
+        main="Improvement of Fit with Number of Predictors",
+        xlab="Number of Predictors",ylab="Determination Coefficient")
+legend("bottomright",legend=c("Original","Improved"),lty=1,lwd=2,col=c("black","red"))
+```
+
+
+
+##PCA
+We simulate X randomly, why it is possible to run PCA?
+
+Why all the same for lmg, last and first? Because of orthogonality.
+
+Why such significant improvement? 
+Created meta-features (orthogonal predictor).
+
+Can we use more columns than rows for PCA? Why PCA still works?
+We only need some pairwise correlation coefficients to decompose covariance matrix.
+```{r}
+xPCA = prcomp(X[,1:10], center = TRUE, scale. = TRUE)
+summary(xPCA)
+```
+
+
+
+
